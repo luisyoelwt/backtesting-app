@@ -10,6 +10,7 @@ export interface Database {
           asset: string;
           strategy_name: string;
           strategy_description: string | null;
+          model_id: string | null;
           timeframe: string;
           start_date: string;
           end_date: string;
@@ -21,6 +22,9 @@ export interface Database {
           total_trades: number | null;
           sharpe_ratio: number | null;
           notes: string | null;
+          no_trade_day: boolean;
+          no_trade_reason: string | null;
+          equity_curve_url: string | null;
           tags: string[];
           created_at: string;
           updated_at: string;
@@ -31,6 +35,7 @@ export interface Database {
           asset: string;
           strategy_name: string;
           strategy_description?: string | null;
+          model_id?: string | null;
           timeframe: string;
           start_date: string;
           end_date: string;
@@ -42,6 +47,9 @@ export interface Database {
           total_trades?: number | null;
           sharpe_ratio?: number | null;
           notes?: string | null;
+          no_trade_day?: boolean;
+          no_trade_reason?: string | null;
+          equity_curve_url?: string | null;
           tags?: string[];
           created_at?: string;
           updated_at?: string;
@@ -52,6 +60,7 @@ export interface Database {
           asset?: string;
           strategy_name?: string;
           strategy_description?: string | null;
+          model_id?: string | null;
           timeframe?: string;
           start_date?: string;
           end_date?: string;
@@ -63,7 +72,45 @@ export interface Database {
           total_trades?: number | null;
           sharpe_ratio?: number | null;
           notes?: string | null;
+          no_trade_day?: boolean;
+          no_trade_reason?: string | null;
+          equity_curve_url?: string | null;
           tags?: string[];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "backtests_model_id_fkey";
+            columns: ["model_id"];
+            isOneToOne: false;
+            referencedRelation: "models";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      models: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          description: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string;
+          name: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          description?: string | null;
+          created_at?: string;
           updated_at?: string;
         };
         Relationships: [];
@@ -78,3 +125,5 @@ export interface Database {
 
 export type BacktestRow = Database["public"]["Tables"]["backtests"]["Row"];
 export type BacktestInsert = Database["public"]["Tables"]["backtests"]["Insert"];
+export type ModelRow = Database["public"]["Tables"]["models"]["Row"];
+export type ModelInsert = Database["public"]["Tables"]["models"]["Insert"];

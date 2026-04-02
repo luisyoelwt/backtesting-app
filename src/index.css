@@ -50,3 +50,88 @@ body {
 .font-mono {
   font-family: "JetBrains Mono", monospace;
 }
+
+.models-editor .rsw-editor {
+  border: 1px solid #2a3447;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #111922;
+}
+
+.models-editor .rsw-toolbar {
+  background: #0f151d;
+  border-bottom: 1px solid #2a3447;
+}
+
+.models-editor .rsw-toolbar button,
+.models-editor .rsw-btn,
+.models-editor .rsw-dd {
+  color: #cfd9ea !important;
+}
+
+.models-editor .rsw-toolbar button:hover,
+.models-editor .rsw-btn:hover {
+  background: #1b2736 !important;
+  color: #f3f7ff !important;
+}
+
+.models-editor .rsw-toolbar button:disabled,
+.models-editor .rsw-btn:disabled {
+  opacity: 0.4;
+}
+
+.models-editor .rsw-ce {
+  min-height: 200px;
+  color: #e8f0ff !important;
+  background: #111922;
+  padding: 12px;
+  line-height: 1.65;
+}
+
+.models-editor .rsw-ce,
+.models-editor .rsw-ce * {
+  color: #e8f0ff !important;
+}
+
+.models-editor .rsw-ce a {
+  color: #6cc8ff !important;
+}
+
+.models-editor .rsw-ce ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+
+.models-editor .rsw-ce ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+
+.models-editor .rsw-ce::placeholder {
+  color: #8796ad;
+}
+
+.models-table-html,
+.models-table-html * {
+  color: #dce7fb !important;
+}
+
+.models-table-html {
+  line-height: 1.6;
+}
+
+.models-table-html ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.3rem 0;
+}
+
+.models-table-html ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin: 0.3rem 0;
+}
+
+.models-table-html a {
+  color: #73c8ff !important;
+}

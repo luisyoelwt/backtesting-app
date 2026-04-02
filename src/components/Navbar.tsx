@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { TrendingUp, LayoutDashboard, PlusCircle, LogOut } from "lucide-react";
+import { TrendingUp, LayoutDashboard, BrainCircuit, ChartColumn, LogOut } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import clsx from "clsx";
 
@@ -34,16 +34,29 @@ export function Navbar() {
           </Link>
 
           <Link
-            to="/dashboard/new"
+            to="/models"
             className={clsx(
               "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors",
-              pathname === "/dashboard/new"
+              pathname === "/models"
                 ? "bg-white/8 text-white"
                 : "text-white/40 hover:text-white/70 hover:bg-white/4"
             )}
           >
-            <PlusCircle className="w-4 h-4" />
-            <span>Nuevo</span>
+            <BrainCircuit className="w-4 h-4" />
+            <span>Modelos</span>
+          </Link>
+
+          <Link
+            to="/analysis"
+            className={clsx(
+              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors",
+              pathname === "/analysis"
+                ? "bg-white/8 text-white"
+                : "text-white/40 hover:text-white/70 hover:bg-white/4"
+            )}
+          >
+            <ChartColumn className="w-4 h-4" />
+            <span>Análisis</span>
           </Link>
         </div>
 

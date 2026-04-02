@@ -1,28 +1,134 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Filter } from "lucide-react";
+import { Button, Input, Popconfirm, Select, Space, Table, Tag, Typography, message } from "antd";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
+import dayjs from "dayjs";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import type { BacktestRow } from "../lib/database.types";
-import { MetricBadge } from "../components/MetricBadge";
+import type { BacktestInsert, BacktestRow, ModelRow } from "../lib/database.types";
+import { BacktestFormModal, type BacktestFormValues } from "../components/BacktestFormModal";
+
+const { Title, Text } = Typography;
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const [backtests, setBacktests] = useState<BacktestRow[]>([]);
+  async function compressImage(file: File): Promise<File> {
+    if (!file.type.startsWith("image/")) {
+      return file;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("No se pudo cargar la imagen."));
+        img.src = objectUrl;
+      });
+
+      const MAX_DIMENSION = 1600;
+      const scale = Math.min(MAX_DIMENSION / image.width, MAX_DIMENSION / image.height, 1);
+      const targetWidth = Math.max(1, Math.round(image.width * scale));
+      const targetHeight = Math.max(1, Math.round(image.height * scale));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        return file;
+      }
+
+      ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, "image/jpeg", 0.82);
+      });
+
+      if (!blob) {
+        return file;
+      }
+
+      const compressedName = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+      return new File([blob], compressedName, { type: "image/jpeg" });
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
+  const [models, setModels] = useState<ModelRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState("");
   const [assetFilter, setAssetFilter] = useState("all");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingBacktest, setEditingBacktest] = useState<BacktestRow | null>(null);
+
+  const loadBacktests = async (showLoader = true) => {
+    if (showLoader) setLoading(true);
+    const { data, error } = await supabase
+      .from("backtests")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      message.error(error.message);
+    } else if (data) {
+      setBacktests(data);
+    }
+    setLoading(false);
+  };
+
+  const loadModels = async () => {
+    const { data, error } = await supabase
+      .from("models")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      message.error(error.message);
+      return;
+    }
+    setModels(data ?? []);
+  };
 
   useEffect(() => {
-    const loadBacktests = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("backtests")
-        .select("*")
-        .order("created_at", { ascending: false });
+    let isMounted = true;
 
-      if (!error && data) setBacktests(data);
+    const loadInitialBacktests = async () => {
+      const [backtestsRes, modelsRes] = await Promise.all([
+        supabase.from("backtests").select("*").order("created_at", { ascending: false }),
+        supabase.from("models").select("*").order("created_at", { ascending: false }),
+      ]);
+
+      if (!isMounted) return;
+
+      if (backtestsRes.error) {
+        message.error(backtestsRes.error.message);
+      } else {
+        setBacktests(backtestsRes.data ?? []);
+      }
+
+      if (modelsRes.error) {
+        message.error(modelsRes.error.message);
+      } else {
+        setModels(modelsRes.data ?? []);
+      }
       setLoading(false);
     };
 
-    loadBacktests();
+    void loadInitialBacktests();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const assets = useMemo(() => {
@@ -34,7 +140,9 @@ export function DashboardPage() {
     return backtests.filter((b) => {
       const matchesQuery =
         b.asset.toLowerCase().includes(query.toLowerCase()) ||
-        b.strategy_name.toLowerCase().includes(query.toLowerCase());
+        b.strategy_name.toLowerCase().includes(query.toLowerCase()) ||
+        (b.no_trade_reason ?? "").toLowerCase().includes(query.toLowerCase()) ||
+        b.tags.some((tag) => tag.toLowerCase().includes(query.toLowerCase()));
 
       const matchesAsset = assetFilter === "all" || b.asset === assetFilter;
 
@@ -42,93 +150,319 @@ export function DashboardPage() {
     });
   }, [backtests, query, assetFilter]);
 
-  return (
-    <div className="min-h-screen bg-[#0a0b0f] text-white">
-      <div className="max-w-6xl mx-auto px-6 pt-24 pb-10">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Registro de Backtests</h1>
-          <p className="text-white/40 mt-1">
-            Guarda, filtra y revisa tus resultados por estrategia.
-          </p>
-        </header>
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditingBacktest(null);
+  };
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-6">
-          <div className="md:col-span-8 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-            <input
+  const openCreateModal = () => {
+    if (models.length === 0) {
+      message.info("Primero crea al menos un modelo en la sección Modelos.");
+      navigate("/models");
+      return;
+    }
+    setEditingBacktest(null);
+    setModalOpen(true);
+  };
+
+  const openEditModal = (row: BacktestRow) => {
+    setEditingBacktest(row);
+    setModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("backtests").delete().eq("id", id);
+    if (error) {
+      message.error(error.message);
+      return;
+    }
+    message.success("Backtest eliminado");
+    await loadBacktests(true);
+  };
+
+  const handleSubmit = async (values: BacktestFormValues) => {
+    setSaving(true);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      message.error("No hay sesión activa. Inicia sesión nuevamente.");
+      setSaving(false);
+      return;
+    }
+
+    if (!values.no_trade_day && !values.model_id) {
+      message.error("Debes seleccionar un modelo.");
+      setSaving(false);
+      return;
+    }
+
+    if (
+      !values.no_trade_day &&
+      (values.initial_capital === undefined || values.initial_capital === null)
+    ) {
+      message.error("Debes ingresar el capital inicial.");
+      setSaving(false);
+      return;
+    }
+
+    const selectedModel = values.model_id ? models.find((m) => m.id === values.model_id) : null;
+
+    let equityCurveUrl: string | null = editingBacktest?.equity_curve_url ?? null;
+    const file = values.equity_curve_file?.[0]?.originFileObj;
+    if (file) {
+      let uploadFile: File;
+      try {
+        uploadFile = await compressImage(file);
+      } catch {
+        uploadFile = file;
+      }
+
+      const originalSizeKb = Math.round(file.size / 1024);
+      const compressedSizeKb = Math.round(uploadFile.size / 1024);
+      if (compressedSizeKb < originalSizeKb) {
+        message.info(`Imagen comprimida: ${originalSizeKb}KB -> ${compressedSizeKb}KB`);
+      }
+
+      const fileExt = uploadFile.name.split(".").pop() ?? "jpg";
+      const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("equity-curves")
+        .upload(filePath, uploadFile, { upsert: false });
+
+      if (uploadError) {
+        const isMissingBucket = /bucket not found/i.test(uploadError.message);
+        if (isMissingBucket) {
+          message.warning(
+            'No se subio la imagen porque el bucket "equity-curves" no existe. Crea el bucket en Supabase Storage y vuelve a intentarlo.'
+          );
+        } else {
+          message.error(`Error subiendo imagen: ${uploadError.message}`);
+          setSaving(false);
+          return;
+        }
+      } else {
+        const { data: publicData } = supabase.storage.from("equity-curves").getPublicUrl(filePath);
+        equityCurveUrl = publicData.publicUrl;
+      }
+    }
+
+    const payload: BacktestInsert = {
+      asset: values.asset.trim(),
+      strategy_name: selectedModel?.name ?? (values.no_trade_day ? "Sin operativa" : "Sin modelo"),
+      strategy_description: selectedModel?.description ?? null,
+      model_id: values.no_trade_day ? (values.model_id ?? null) : (values.model_id ?? null),
+      timeframe: values.timeframe,
+      start_date: values.start_date.toISOString(),
+      end_date: values.end_date.toISOString(),
+      initial_capital: values.no_trade_day ? 0 : Number(values.initial_capital),
+      total_return: values.no_trade_day ? null : (values.total_return ?? null),
+      max_drawdown: values.no_trade_day ? null : (values.max_drawdown ?? null),
+      win_rate: values.no_trade_day ? null : (values.win_rate ?? null),
+      profit_factor: values.no_trade_day ? null : (values.profit_factor ?? null),
+      total_trades: values.no_trade_day ? 0 : (values.total_trades ?? null),
+      sharpe_ratio: values.no_trade_day ? null : (values.sharpe_ratio ?? null),
+      notes: values.notes?.trim() || null,
+      no_trade_day: values.no_trade_day ?? false,
+      no_trade_reason: values.no_trade_day ? values.no_trade_reason?.trim() || null : null,
+      equity_curve_url: equityCurveUrl,
+      tags: values.tags ?? [],
+      user_id: user.id,
+    };
+
+    const queryBuilder = editingBacktest
+      ? supabase.from("backtests").update(payload).eq("id", editingBacktest.id)
+      : supabase.from("backtests").insert(payload);
+
+    const { error } = await queryBuilder;
+    if (error) {
+      message.error(error.message);
+      setSaving(false);
+      return;
+    }
+
+    message.success(editingBacktest ? "Backtest actualizado" : "Backtest creado");
+    closeModal();
+    await Promise.all([loadBacktests(true), loadModels()]);
+    setSaving(false);
+  };
+
+  const modelsById = useMemo(() => {
+    return new Map(models.map((model) => [model.id, model]));
+  }, [models]);
+
+  const columns = [
+    {
+      title: "Activo",
+      dataIndex: "asset",
+      key: "asset",
+      width: 120,
+      render: (value: string) => <Text strong>{value}</Text>,
+    },
+    {
+      title: "Modelo",
+      dataIndex: "model_id",
+      key: "model_id",
+      width: 170,
+      render: (value: string | null) => {
+        if (!value) return <Text type="secondary">Sin modelo</Text>;
+        const model = modelsById.get(value);
+        return <Text>{model?.name ?? "Modelo eliminado"}</Text>;
+      },
+    },
+    {
+      title: "Estado",
+      dataIndex: "no_trade_day",
+      key: "no_trade_day",
+      width: 150,
+      render: (value: boolean) =>
+        value ? <Tag color="gold">Sin operativa</Tag> : <Tag color="green">Operado</Tag>,
+    },
+    {
+      title: "Inicio",
+      dataIndex: "start_date",
+      key: "start_date",
+      width: 170,
+      render: (value: string) => dayjs(value).format("YYYY-MM-DD HH:mm"),
+    },
+    {
+      title: "Fin",
+      dataIndex: "end_date",
+      key: "end_date",
+      width: 170,
+      render: (value: string) => dayjs(value).format("YYYY-MM-DD HH:mm"),
+    },
+    {
+      title: "Return",
+      dataIndex: "total_return",
+      key: "total_return",
+      align: "right" as const,
+      width: 120,
+      render: (value: number | null) => (value == null ? "-" : `${value.toFixed(2)}%`),
+    },
+    {
+      title: "Drawdown",
+      dataIndex: "max_drawdown",
+      key: "max_drawdown",
+      align: "right" as const,
+      width: 120,
+      render: (value: number | null) => (value == null ? "-" : `${value.toFixed(2)}%`),
+    },
+    {
+      title: "Tags",
+      dataIndex: "tags",
+      key: "tags",
+      width: 180,
+      render: (tags: string[]) =>
+        tags?.length ? (
+          <Space size={[0, 6]} wrap>
+            {tags.map((tag) => (
+              <Tag key={tag}>{tag}</Tag>
+            ))}
+          </Space>
+        ) : (
+          <Text type="secondary">-</Text>
+        ),
+    },
+    {
+      title: "Acciones",
+      key: "actions",
+      fixed: "right" as const,
+      width: 180,
+      render: (_: unknown, row: BacktestRow) => (
+        <Space>
+          <Button
+            type="default"
+            icon={<EyeOutlined />}
+            onClick={() => navigate(`/dashboard/${row.id}`)}
+          >
+            Ver
+          </Button>
+          <Button type="default" icon={<EditOutlined />} onClick={() => openEditModal(row)} />
+          <Popconfirm
+            title="Eliminar backtest"
+            description="Esta acción no se puede deshacer."
+            okText="Eliminar"
+            cancelText="Cancelar"
+            onConfirm={() => handleDelete(row.id)}
+          >
+            <Button danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#0a0b0f] text-white px-4 md:px-6 pt-20 pb-10">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <Title level={2} style={{ color: "#f5f8ff", margin: 0 }}>
+              Registro de Backtests
+            </Title>
+          </div>
+
+          <Space>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+              Nuevo backtest
+            </Button>
+          </Space>
+        </div>
+
+        <Text style={{ color: "#8b98b1", display: "block", marginBottom: 12 }}>
+          Modelos disponibles: {models.length}
+        </Text>
+
+        <Text style={{ color: "#6f7f9a", display: "block", marginBottom: 12 }}>
+          Búsqueda: activo, modelo/estrategia, tags y motivo sin operativa.
+        </Text>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-4">
+          <div className="md:col-span-8">
+            <Input
+              prefix={<SearchOutlined />}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar por activo o estrategia..."
-              className="w-full bg-white/4 border border-white/8 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-emerald-500/50"
+              placeholder="Buscar por activo o estrategia"
+              allowClear
             />
           </div>
 
-          <div className="md:col-span-4 relative">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-            <select
+          <div className="md:col-span-4">
+            <Select
               value={assetFilter}
-              onChange={(e) => setAssetFilter(e.target.value)}
-              className="w-full appearance-none bg-white/4 border border-white/8 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500/50"
-            >
-              {assets.map((asset) => (
-                <option key={asset} value={asset} className="bg-[#111318]">
-                  {asset === "all" ? "Todos los activos" : asset}
-                </option>
-              ))}
-            </select>
+              style={{ width: "100%" }}
+              onChange={(value) => setAssetFilter(value)}
+              options={assets.map((asset) => ({
+                value: asset,
+                label: asset === "all" ? "Todos los activos" : asset,
+              }))}
+            />
           </div>
         </div>
 
-        {loading ? (
-          <div className="bg-[#111318] border border-white/8 rounded-2xl p-10 text-center text-white/40">
-            Cargando backtests...
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="bg-[#111318] border border-white/8 rounded-2xl p-10 text-center">
-            <p className="text-white/60 mb-2">No hay registros aún.</p>
-            <p className="text-white/30 text-sm">Crea tu primer backtest desde el botón "Nuevo".</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto bg-[#111318] border border-white/8 rounded-2xl">
-            <table className="w-full min-w-225 text-sm">
-              <thead className="border-b border-white/8 text-white/40 text-xs uppercase tracking-widest">
-                <tr>
-                  <th className="text-left p-4">Activo</th>
-                  <th className="text-left p-4">Estrategia</th>
-                  <th className="text-left p-4">Timeframe</th>
-                  <th className="text-right p-4">Return</th>
-                  <th className="text-right p-4">Drawdown</th>
-                  <th className="text-right p-4">Win Rate</th>
-                  <th className="text-right p-4">Trades</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((b) => (
-                  <tr
-                    key={b.id}
-                    className="border-b border-white/5 last:border-b-0 hover:bg-white/2"
-                  >
-                    <td className="p-4 font-medium">{b.asset}</td>
-                    <td className="p-4 text-white/75">{b.strategy_name}</td>
-                    <td className="p-4 text-white/60">{b.timeframe}</td>
-                    <td className="p-4 text-right">
-                      <MetricBadge value={b.total_return} suffix="%" positive="high" />
-                    </td>
-                    <td className="p-4 text-right">
-                      <MetricBadge value={b.max_drawdown} suffix="%" positive="low" />
-                    </td>
-                    <td className="p-4 text-right">
-                      <MetricBadge value={b.win_rate} suffix="%" positive="high" />
-                    </td>
-                    <td className="p-4 text-right font-mono text-white/70">
-                      {b.total_trades ?? "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <Table
+          rowKey="id"
+          loading={loading}
+          columns={columns}
+          dataSource={filtered}
+          pagination={{ pageSize: 10 }}
+          scroll={{ x: 1200 }}
+          locale={{ emptyText: "No hay backtests aún" }}
+        />
+
+        <BacktestFormModal
+          open={modalOpen}
+          mode={editingBacktest ? "edit" : "create"}
+          loading={saving}
+          initialValues={editingBacktest}
+          models={models}
+          onCancel={closeModal}
+          onSubmit={handleSubmit}
+        />
       </div>
     </div>
   );
