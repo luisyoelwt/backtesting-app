@@ -25,6 +25,7 @@ export interface Database {
           no_trade_day: boolean;
           no_trade_reason: string | null;
           equity_curve_url: string | null;
+          equity_curve_urls: string[];
           tags: string[];
           created_at: string;
           updated_at: string;
@@ -50,6 +51,7 @@ export interface Database {
           no_trade_day?: boolean;
           no_trade_reason?: string | null;
           equity_curve_url?: string | null;
+          equity_curve_urls?: string[];
           tags?: string[];
           created_at?: string;
           updated_at?: string;
@@ -75,6 +77,7 @@ export interface Database {
           no_trade_day?: boolean;
           no_trade_reason?: string | null;
           equity_curve_url?: string | null;
+          equity_curve_urls?: string[];
           tags?: string[];
           updated_at?: string;
         };

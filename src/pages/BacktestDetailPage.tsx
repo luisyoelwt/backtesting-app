@@ -47,6 +47,14 @@ export function BacktestDetailPage() {
     loadById();
   }, [id]);
 
+  const equityImages = data
+    ? data.equity_curve_urls?.length
+      ? data.equity_curve_urls.slice(0, 3)
+      : data.equity_curve_url
+        ? [data.equity_curve_url]
+        : []
+    : [];
+
   return (
     <div className="min-h-screen bg-[#0a0b0f] text-white px-4 md:px-6 pt-20 pb-10">
       <div className="max-w-5xl mx-auto">
@@ -65,69 +73,87 @@ export function BacktestDetailPage() {
                   <Text type="secondary">Detalle completo del backtest</Text>
                 </div>
 
-                <Descriptions bordered column={2} size="small">
-                  <Descriptions.Item label="Activo">{data.asset}</Descriptions.Item>
-                  <Descriptions.Item label="Timeframe">{data.timeframe}</Descriptions.Item>
-                  <Descriptions.Item label="Modelo">{modelName || "-"}</Descriptions.Item>
+                <Card size="small" title="Contexto Operativo">
+                  <Descriptions bordered column={2} size="small">
+                    <Descriptions.Item label="Activo">{data.asset}</Descriptions.Item>
+                    <Descriptions.Item label="Timeframe">{data.timeframe}</Descriptions.Item>
+                    <Descriptions.Item label="Modelo">{modelName || "-"}</Descriptions.Item>
+                    <Descriptions.Item label="Estado operativo">
+                      {data.no_trade_day ? "Sin operativa" : "Operado"}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Motivo sin operativa" span={2}>
+                      {data.no_trade_reason || "-"}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Inicio">
+                      {dayjs(data.start_date).format("YYYY-MM-DD HH:mm")}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Fin">
+                      {dayjs(data.end_date).format("YYYY-MM-DD HH:mm")}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Capital inicial">
+                      {Number(data.initial_capital).toFixed(2)}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Tags">
+                      {data.tags?.length ? data.tags.map((tag) => <Tag key={tag}>{tag}</Tag>) : "-"}
+                    </Descriptions.Item>
+                  </Descriptions>
+                </Card>
 
-                  <Descriptions.Item label="Estado operativo">
-                    {data.no_trade_day ? "Sin operativa" : "Operado"}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Motivo sin operativa">
-                    {data.no_trade_reason || "-"}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Equity Curve" span={2}>
-                    {data.equity_curve_url ? (
-                      <a href={data.equity_curve_url} target="_blank" rel="noreferrer">
-                        <img
-                          src={data.equity_curve_url}
-                          alt="Equity curve"
-                          style={{ maxWidth: "100%", maxHeight: 280, borderRadius: 8 }}
-                        />
-                      </a>
-                    ) : (
-                      "-"
-                    )}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Inicio">
-                    {dayjs(data.start_date).format("YYYY-MM-DD HH:mm")}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Fin">
-                    {dayjs(data.end_date).format("YYYY-MM-DD HH:mm")}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Capital inicial">
-                    {Number(data.initial_capital).toFixed(2)}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Total Return %">
-                    {data.total_return == null ? "-" : data.total_return.toFixed(2)}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Max Drawdown %">
-                    {data.max_drawdown == null ? "-" : data.max_drawdown.toFixed(2)}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Win Rate %">
-                    {data.win_rate == null ? "-" : data.win_rate.toFixed(2)}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Profit Factor">
-                    {data.profit_factor == null ? "-" : data.profit_factor.toFixed(2)}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Sharpe Ratio">
-                    {data.sharpe_ratio == null ? "-" : data.sharpe_ratio.toFixed(2)}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Tags">
-                    {data.tags?.length ? data.tags.map((tag) => <Tag key={tag}>{tag}</Tag>) : "-"}
-                  </Descriptions.Item>
+                <Card size="small" title="Metricas">
+                  <Descriptions bordered column={2} size="small">
+                    <Descriptions.Item label="Total Return %">
+                      {data.total_return == null ? "-" : data.total_return.toFixed(2)}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Max Drawdown %">
+                      {data.max_drawdown == null ? "-" : data.max_drawdown.toFixed(2)}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Win Rate %">
+                      {data.win_rate == null ? "-" : data.win_rate.toFixed(2)}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Profit Factor">
+                      {data.profit_factor == null ? "-" : data.profit_factor.toFixed(2)}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Sharpe Ratio">
+                      {data.sharpe_ratio == null ? "-" : data.sharpe_ratio.toFixed(2)}
+                    </Descriptions.Item>
+                  </Descriptions>
+                </Card>
 
-                  <Descriptions.Item label="Descripción del modelo" span={2}>
-                    {modelDescription ? (
-                      <div dangerouslySetInnerHTML={{ __html: modelDescription }} />
-                    ) : (
-                      "-"
-                    )}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Notas" span={2}>
-                    {data.notes || "-"}
-                  </Descriptions.Item>
-                </Descriptions>
+                <Card size="small" title="Notas y Modelo">
+                  <Descriptions bordered column={1} size="small">
+                    <Descriptions.Item label="Descripcion del modelo">
+                      {modelDescription ? (
+                        <div dangerouslySetInnerHTML={{ __html: modelDescription }} />
+                      ) : (
+                        "-"
+                      )}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Notas">{data.notes || "-"}</Descriptions.Item>
+                  </Descriptions>
+                </Card>
+
+                <Card size="small" title="Equity Curve">
+                  {equityImages.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {equityImages.map((imageUrl, index) => (
+                        <a href={imageUrl} target="_blank" rel="noreferrer" key={imageUrl + index}>
+                          <img
+                            src={imageUrl}
+                            alt={`Equity curve ${index + 1}`}
+                            style={{
+                              width: "100%",
+                              maxHeight: 360,
+                              objectFit: "contain",
+                              borderRadius: 8,
+                            }}
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <Text type="secondary">Sin imagen cargada</Text>
+                  )}
+                </Card>
               </Space>
             ) : null}
           </Card>

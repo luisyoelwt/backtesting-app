@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS public.backtests (
   no_trade_day    BOOLEAN NOT NULL DEFAULT FALSE,
   no_trade_reason TEXT,
   equity_curve_url TEXT,
+  equity_curve_urls TEXT[] NOT NULL DEFAULT '{}',
   tags            TEXT[] DEFAULT '{}',
 
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -158,6 +159,21 @@ ALTER TABLE public.backtests
 
 ALTER TABLE public.backtests
   ADD COLUMN IF NOT EXISTS equity_curve_url TEXT;
+
+ALTER TABLE public.backtests
+  ADD COLUMN IF NOT EXISTS equity_curve_urls TEXT[] NOT NULL DEFAULT '{}';
+
+UPDATE public.backtests
+SET equity_curve_urls = ARRAY[equity_curve_url]
+WHERE equity_curve_url IS NOT NULL
+  AND (equity_curve_urls IS NULL OR cardinality(equity_curve_urls) = 0);
+
+ALTER TABLE public.backtests
+  DROP CONSTRAINT IF EXISTS backtests_equity_curve_urls_max_3;
+
+ALTER TABLE public.backtests
+  ADD CONSTRAINT backtests_equity_curve_urls_max_3
+  CHECK (cardinality(equity_curve_urls) <= 3);
 
 CREATE INDEX IF NOT EXISTS idx_backtests_model_id  ON public.backtests(model_id);
 

@@ -18,6 +18,43 @@ const { Title, Text } = Typography;
 export function DashboardPage() {
   const navigate = useNavigate();
   const [backtests, setBacktests] = useState<BacktestRow[]>([]);
+
+  const extractEquityStoragePath = (value: string): string | null => {
+    if (!value) return null;
+
+    if (!/^https?:\/\//i.test(value)) {
+      return value;
+    }
+
+    try {
+      const parsed = new URL(value);
+      const marker = "/storage/v1/object/public/equity-curves/";
+      const markerIndex = parsed.pathname.indexOf(marker);
+      if (markerIndex === -1) return null;
+
+      const path = parsed.pathname.slice(markerIndex + marker.length);
+      return decodeURIComponent(path);
+    } catch {
+      return null;
+    }
+  };
+
+  const getBacktestImagePaths = (row: BacktestRow): string[] => {
+    const urls = row.equity_curve_urls?.length
+      ? row.equity_curve_urls
+      : row.equity_curve_url
+        ? [row.equity_curve_url]
+        : [];
+
+    return Array.from(
+      new Set(
+        urls
+          .map((url) => extractEquityStoragePath(url))
+          .filter((path): path is string => Boolean(path))
+      )
+    );
+  };
+
   async function compressImage(file: File): Promise<File> {
     if (!file.type.startsWith("image/")) {
       return file;
@@ -170,8 +207,21 @@ export function DashboardPage() {
     setModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("backtests").delete().eq("id", id);
+  const handleDelete = async (row: BacktestRow) => {
+    const imagePaths = getBacktestImagePaths(row);
+
+    if (imagePaths.length > 0) {
+      const { error: storageError } = await supabase.storage
+        .from("equity-curves")
+        .remove(imagePaths);
+
+      if (storageError) {
+        message.error(`No se pudo eliminar las imágenes asociadas: ${storageError.message}`);
+        return;
+      }
+    }
+
+    const { error } = await supabase.from("backtests").delete().eq("id", row.id);
     if (error) {
       message.error(error.message);
       return;
@@ -209,43 +259,60 @@ export function DashboardPage() {
 
     const selectedModel = values.model_id ? models.find((m) => m.id === values.model_id) : null;
 
-    let equityCurveUrl: string | null = editingBacktest?.equity_curve_url ?? null;
-    const file = values.equity_curve_file?.[0]?.originFileObj;
-    if (file) {
-      let uploadFile: File;
-      try {
-        uploadFile = await compressImage(file);
-      } catch {
-        uploadFile = file;
-      }
+    let equityCurveUrls: string[] = editingBacktest?.equity_curve_urls?.length
+      ? editingBacktest.equity_curve_urls
+      : editingBacktest?.equity_curve_url
+        ? [editingBacktest.equity_curve_url]
+        : [];
 
-      const originalSizeKb = Math.round(file.size / 1024);
-      const compressedSizeKb = Math.round(uploadFile.size / 1024);
-      if (compressedSizeKb < originalSizeKb) {
-        message.info(`Imagen comprimida: ${originalSizeKb}KB -> ${compressedSizeKb}KB`);
-      }
+    const files = values.equity_curve_file?.map((item) => item.originFileObj).filter(Boolean) as
+      | File[]
+      | undefined;
 
-      const fileExt = uploadFile.name.split(".").pop() ?? "jpg";
-      const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+    if (files?.length) {
+      const uploadedUrls: string[] = [];
 
-      const { error: uploadError } = await supabase.storage
-        .from("equity-curves")
-        .upload(filePath, uploadFile, { upsert: false });
+      for (const file of files.slice(0, 3)) {
+        let uploadFile: File;
+        try {
+          uploadFile = await compressImage(file);
+        } catch {
+          uploadFile = file;
+        }
 
-      if (uploadError) {
-        const isMissingBucket = /bucket not found/i.test(uploadError.message);
-        if (isMissingBucket) {
-          message.warning(
-            'No se subio la imagen porque el bucket "equity-curves" no existe. Crea el bucket en Supabase Storage y vuelve a intentarlo.'
-          );
-        } else {
+        const originalSizeKb = Math.round(file.size / 1024);
+        const compressedSizeKb = Math.round(uploadFile.size / 1024);
+        if (compressedSizeKb < originalSizeKb) {
+          message.info(`Imagen comprimida: ${originalSizeKb}KB -> ${compressedSizeKb}KB`);
+        }
+
+        const fileExt = uploadFile.name.split(".").pop() ?? "jpg";
+        const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("equity-curves")
+          .upload(filePath, uploadFile, { upsert: false });
+
+        if (uploadError) {
+          const isMissingBucket = /bucket not found/i.test(uploadError.message);
+          if (isMissingBucket) {
+            message.warning(
+              'No se subio la imagen porque el bucket "equity-curves" no existe. Crea el bucket en Supabase Storage y vuelve a intentarlo.'
+            );
+            break;
+          }
+
           message.error(`Error subiendo imagen: ${uploadError.message}`);
           setSaving(false);
           return;
         }
-      } else {
+
         const { data: publicData } = supabase.storage.from("equity-curves").getPublicUrl(filePath);
-        equityCurveUrl = publicData.publicUrl;
+        uploadedUrls.push(publicData.publicUrl);
+      }
+
+      if (uploadedUrls.length > 0) {
+        equityCurveUrls = uploadedUrls.slice(0, 3);
       }
     }
 
@@ -267,7 +334,8 @@ export function DashboardPage() {
       notes: values.notes?.trim() || null,
       no_trade_day: values.no_trade_day ?? false,
       no_trade_reason: values.no_trade_day ? values.no_trade_reason?.trim() || null : null,
-      equity_curve_url: equityCurveUrl,
+      equity_curve_url: equityCurveUrls[0] ?? null,
+      equity_curve_urls: equityCurveUrls,
       tags: values.tags ?? [],
       user_id: user.id,
     };
@@ -386,7 +454,7 @@ export function DashboardPage() {
             description="Esta acción no se puede deshacer."
             okText="Eliminar"
             cancelText="Cancelar"
-            onConfirm={() => handleDelete(row.id)}
+            onConfirm={() => handleDelete(row)}
           >
             <Button danger icon={<DeleteOutlined />} />
           </Popconfirm>

@@ -230,15 +230,7 @@ export function NewBacktestPage() {
                   className="input"
                 />
               </Field>
-              <Field label="Total Trades">
-                <input
-                  type="number"
-                  step="1"
-                  value={form.total_trades}
-                  onChange={(e) => update("total_trades", e.target.value)}
-                  className="input"
-                />
-              </Field>
+
               <Field label="Sharpe Ratio">
                 <input
                   type="number"

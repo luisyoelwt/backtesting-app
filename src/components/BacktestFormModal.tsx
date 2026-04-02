@@ -208,21 +208,27 @@ export function BacktestFormModal({
           name="equity_curve_file"
           valuePropName="fileList"
           getValueFromEvent={(e) => e?.fileList}
-          extra="PNG/JPG/WEBP, máximo 3MB."
+          extra="PNG/JPG/WEBP, máximo 3 imágenes de 3MB cada una."
           rules={[
             {
               validator: (_, fileList: UploadFile[] | undefined) => {
                 if (!fileList || fileList.length === 0) return Promise.resolve();
-                const file = fileList[0];
-                const type = file.type ?? "";
-                const size = file.size ?? 0;
+                if (fileList.length > 3) {
+                  return Promise.reject(new Error("Solo puedes adjuntar hasta 3 imágenes."));
+                }
+
                 const allowed = ["image/png", "image/jpeg", "image/webp"];
 
-                if (!allowed.includes(type)) {
-                  return Promise.reject(new Error("Formato inválido. Usa PNG/JPG/WEBP."));
-                }
-                if (size > 3 * 1024 * 1024) {
-                  return Promise.reject(new Error("La imagen no puede superar 3MB."));
+                for (const file of fileList) {
+                  const type = file.type ?? "";
+                  const size = file.size ?? 0;
+
+                  if (!allowed.includes(type)) {
+                    return Promise.reject(new Error("Formato inválido. Usa PNG/JPG/WEBP."));
+                  }
+                  if (size > 3 * 1024 * 1024) {
+                    return Promise.reject(new Error("Cada imagen no puede superar 3MB."));
+                  }
                 }
                 return Promise.resolve();
               },
@@ -231,15 +237,15 @@ export function BacktestFormModal({
         >
           <Upload.Dragger
             accept=".png,.jpg,.jpeg,.webp"
-            multiple={false}
-            maxCount={1}
+            multiple
+            maxCount={3}
             beforeUpload={() => false}
           >
             <p className="ant-upload-drag-icon">
               <InboxOutlined />
             </p>
-            <p className="ant-upload-text">Haz click o arrastra una imagen</p>
-            <p className="ant-upload-hint">Puedes adjuntar el screenshot de la curva de equity</p>
+            <p className="ant-upload-text">Haz click o arrastra hasta 3 imágenes</p>
+            <p className="ant-upload-hint">Puedes adjuntar screenshots de la curva de equity</p>
           </Upload.Dragger>
         </Form.Item>
 
@@ -256,9 +262,7 @@ export function BacktestFormModal({
           <Form.Item label="Profit Factor" name="profit_factor">
             <InputNumber style={{ width: "100%" }} step={0.01} disabled={noTradeDay} />
           </Form.Item>
-          <Form.Item label="Total Trades" name="total_trades">
-            <InputNumber style={{ width: "100%" }} step={1} disabled={noTradeDay} />
-          </Form.Item>
+
           <Form.Item label="Sharpe Ratio" name="sharpe_ratio">
             <InputNumber style={{ width: "100%" }} step={0.01} disabled={noTradeDay} />
           </Form.Item>
