@@ -1,25 +1,29 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { Alert, Button, Card, Form, Input, Typography } from "antd";
+import { EyeInvisibleOutlined, EyeTwoTone, LockOutlined, MailOutlined } from "@ant-design/icons";
 import { supabase } from "../lib/supabase";
-import { TrendingUp, Mail, Lock, AlertCircle } from "lucide-react";
+import { TrendingUp } from "lucide-react";
+
+const { Title, Paragraph, Text } = Typography;
 
 export function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (values: { email: string; password: string }) => {
     setError(null);
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: values.email,
+      password: values.password,
+    });
 
     if (error) {
       setError(error.message);
-      setLoading(false);
     }
+    setLoading(false);
     // AuthContext handles redirect on success
   };
 
@@ -36,7 +40,6 @@ export function LoginPage() {
       />
 
       <div className="relative w-full max-w-md">
-        {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-10">
           <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center">
             <TrendingUp className="w-5 h-5 text-emerald-400" />
@@ -44,68 +47,56 @@ export function LoginPage() {
           <span className="text-white font-bold text-xl tracking-tight">BackLog</span>
         </div>
 
-        {/* Card */}
-        <div className="bg-[#111318] border border-white/8 rounded-2xl p-8">
-          <h1 className="text-white text-2xl font-bold mb-1">Bienvenido de vuelta</h1>
-          <p className="text-white/40 text-sm mb-8">Inicia sesión para ver tus backtests</p>
+        <Card
+          className="!bg-[#111318] !border-white/8 !rounded-2xl"
+          styles={{ body: { padding: 28 } }}
+        >
+          <Title level={3} style={{ color: "#eef2ff", marginBottom: 4 }}>
+            Bienvenido de vuelta
+          </Title>
+          <Paragraph style={{ color: "#96a4be", marginBottom: 20 }}>
+            Inicia sesión para ver tus backtests
+          </Paragraph>
 
           {error && (
-            <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6">
-              <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-              <p className="text-red-400 text-sm">{error}</p>
-            </div>
+            <Alert
+              type="error"
+              showIcon
+              message="Error al iniciar sesión"
+              description={error}
+              style={{ marginBottom: 16 }}
+            />
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-white/60 text-xs font-medium mb-2 uppercase tracking-widest">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="tu@email.com"
-                  className="w-full bg-white/4 border border-white/8 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/20 text-sm focus:outline-none focus:border-emerald-500/50 focus:bg-white/6 transition-all"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-white/60 text-xs font-medium mb-2 uppercase tracking-widest">
-                Contraseña
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  placeholder="••••••••"
-                  className="w-full bg-white/4 border border-white/8 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/20 text-sm focus:outline-none focus:border-emerald-500/50 focus:bg-white/6 transition-all"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold py-3 rounded-xl transition-colors mt-2"
+          <Form layout="vertical" requiredMark={false} onFinish={handleSubmit}>
+            <Form.Item
+              label={<Text style={{ color: "#a8b5cc" }}>Email</Text>}
+              name="email"
+              rules={[
+                { required: true, message: "Ingresa tu email" },
+                { type: "email", message: "Email inválido" },
+              ]}
             >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                  Ingresando...
-                </span>
-              ) : (
-                "Ingresar"
-              )}
-            </button>
-          </form>
+              <Input prefix={<MailOutlined />} placeholder="tu@email.com" size="large" />
+            </Form.Item>
+
+            <Form.Item
+              label={<Text style={{ color: "#a8b5cc" }}>Contraseña</Text>}
+              name="password"
+              rules={[{ required: true, message: "Ingresa tu contraseña" }]}
+            >
+              <Input.Password
+                prefix={<LockOutlined />}
+                placeholder="••••••••"
+                size="large"
+                iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
+              />
+            </Form.Item>
+
+            <Button type="primary" htmlType="submit" loading={loading} size="large" block>
+              Ingresar
+            </Button>
+          </Form>
 
           <p className="text-center text-white/30 text-sm mt-6">
             ¿No tienes cuenta?{" "}
@@ -116,7 +107,7 @@ export function LoginPage() {
               Regístrate
             </Link>
           </p>
-        </div>
+        </Card>
       </div>
     </div>
   );

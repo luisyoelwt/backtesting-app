@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { TrendingUp, LayoutDashboard, BrainCircuit, ChartColumn, LogOut } from "lucide-react";
+import { Button } from "antd";
 import { useAuth } from "../hooks/useAuth";
 import clsx from "clsx";
 
@@ -61,17 +62,20 @@ export function Navbar() {
         </div>
 
         {/* User + logout */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
           <span className="text-white/30 text-xs hidden sm:block truncate max-w-40">
             {user?.email}
           </span>
-          <button
+          <Button
+            danger
+            type="default"
             onClick={signOut}
             title="Cerrar sesión"
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            icon={<LogOut className="w-4 h-4" />}
+            className="h-9! rounded-lg! border-red-400/40! bg-transparent! text-red-300! hover:text-red-200! hover:bg-red-500/10!"
           >
-            <LogOut className="w-4 h-4" />
-          </button>
+            <span className="text-sm font-medium hidden sm:inline">Salir</span>
+          </Button>
         </div>
       </div>
     </nav>

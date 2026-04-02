@@ -1,59 +1,64 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { Alert, Button, Card, Form, Input, Result, Typography } from "antd";
+import {
+  EyeInvisibleOutlined,
+  EyeTwoTone,
+  LockOutlined,
+  MailOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 import { supabase } from "../lib/supabase";
-import { TrendingUp, Mail, Lock, User, AlertCircle, CheckCircle } from "lucide-react";
+import { TrendingUp } from "lucide-react";
+
+const { Title, Paragraph, Text } = Typography;
 
 export function RegisterPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (values: { email: string; password: string; confirm: string }) => {
     setError(null);
 
-    if (password !== confirm) {
+    if (values.password !== values.confirm) {
       setError("Las contraseñas no coinciden.");
       return;
     }
-    if (password.length < 6) {
+    if (values.password.length < 6) {
       setError("La contraseña debe tener al menos 6 caracteres.");
       return;
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({
+      email: values.email,
+      password: values.password,
+    });
 
     if (error) {
       setError(error.message);
-      setLoading(false);
     } else {
       setSuccess(true);
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   if (success) {
     return (
       <div className="min-h-screen bg-[#0a0b0f] flex items-center justify-center p-4">
-        <div className="w-full max-w-md text-center">
-          <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-8 h-8 text-emerald-400" />
-          </div>
-          <h2 className="text-white text-2xl font-bold mb-2">¡Cuenta creada!</h2>
-          <p className="text-white/40 text-sm mb-6">
-            Revisa tu email para confirmar tu cuenta y luego inicia sesión.
-          </p>
-          <Link
-            to="/login"
-            className="inline-block bg-emerald-500 hover:bg-emerald-400 text-black font-semibold px-6 py-3 rounded-xl transition-colors"
-          >
-            Ir a Login
-          </Link>
-        </div>
+        <Card className="w-full max-w-md bg-[#111318]! border-white/8! rounded-2xl!">
+          <Result
+            status="success"
+            title="Cuenta creada"
+            subTitle="Revisa tu email para confirmar tu cuenta y luego inicia sesión."
+            extra={
+              <Button type="primary" size="large">
+                <Link to="/login">Ir a login</Link>
+              </Button>
+            }
+          />
+        </Card>
       </div>
     );
   }
@@ -77,84 +82,83 @@ export function RegisterPage() {
           <span className="text-white font-bold text-xl tracking-tight">BackLog</span>
         </div>
 
-        <div className="bg-[#111318] border border-white/8 rounded-2xl p-8">
-          <h1 className="text-white text-2xl font-bold mb-1">Crear cuenta</h1>
-          <p className="text-white/40 text-sm mb-8">Empieza a registrar tus backtests</p>
+        <Card
+          className="bg-[#111318]! border-white/8! rounded-2xl!"
+          styles={{ body: { padding: 28 } }}
+        >
+          <Title level={3} style={{ color: "#eef2ff", marginBottom: 4 }}>
+            Crear cuenta
+          </Title>
+          <Paragraph style={{ color: "#96a4be", marginBottom: 20 }}>
+            Empieza a registrar tus backtests
+          </Paragraph>
 
           {error && (
-            <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6">
-              <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-              <p className="text-red-400 text-sm">{error}</p>
-            </div>
+            <Alert
+              type="error"
+              showIcon
+              message="Error al registrarte"
+              description={error}
+              style={{ marginBottom: 16 }}
+            />
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-white/60 text-xs font-medium mb-2 uppercase tracking-widest">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="tu@email.com"
-                  className="w-full bg-white/4 border border-white/8 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/20 text-sm focus:outline-none focus:border-emerald-500/50 focus:bg-white/6 transition-all"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-white/60 text-xs font-medium mb-2 uppercase tracking-widest">
-                Contraseña
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  placeholder="Mínimo 6 caracteres"
-                  className="w-full bg-white/4 border border-white/8 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/20 text-sm focus:outline-none focus:border-emerald-500/50 focus:bg-white/6 transition-all"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-white/60 text-xs font-medium mb-2 uppercase tracking-widest">
-                Confirmar contraseña
-              </label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-                <input
-                  type="password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  required
-                  placeholder="Repite la contraseña"
-                  className="w-full bg-white/4 border border-white/8 rounded-xl pl-10 pr-4 py-3 text-white placeholder-white/20 text-sm focus:outline-none focus:border-emerald-500/50 focus:bg-white/6 transition-all"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold py-3 rounded-xl transition-colors mt-2"
+          <Form layout="vertical" requiredMark={false} onFinish={handleSubmit}>
+            <Form.Item
+              label={<Text style={{ color: "#a8b5cc" }}>Email</Text>}
+              name="email"
+              rules={[
+                { required: true, message: "Ingresa tu email" },
+                { type: "email", message: "Email inválido" },
+              ]}
             >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                  Creando cuenta...
-                </span>
-              ) : (
-                "Crear cuenta"
-              )}
-            </button>
-          </form>
+              <Input prefix={<MailOutlined />} placeholder="tu@email.com" size="large" />
+            </Form.Item>
+
+            <Form.Item
+              label={<Text style={{ color: "#a8b5cc" }}>Contraseña</Text>}
+              name="password"
+              rules={[
+                { required: true, message: "Ingresa una contraseña" },
+                { min: 6, message: "Mínimo 6 caracteres" },
+              ]}
+            >
+              <Input.Password
+                prefix={<LockOutlined />}
+                placeholder="Mínimo 6 caracteres"
+                size="large"
+                iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label={<Text style={{ color: "#a8b5cc" }}>Confirmar contraseña</Text>}
+              name="confirm"
+              dependencies={["password"]}
+              rules={[
+                { required: true, message: "Confirma tu contraseña" },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue("password") === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error("Las contraseñas no coinciden"));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password
+                prefix={<UserOutlined />}
+                placeholder="Repite la contraseña"
+                size="large"
+                iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
+              />
+            </Form.Item>
+
+            <Button type="primary" htmlType="submit" loading={loading} size="large" block>
+              Crear cuenta
+            </Button>
+          </Form>
 
           <p className="text-center text-white/30 text-sm mt-6">
             ¿Ya tienes cuenta?{" "}
@@ -162,7 +166,7 @@ export function RegisterPage() {
               Iniciar sesión
             </Link>
           </p>
-        </div>
+        </Card>
       </div>
     </div>
   );
