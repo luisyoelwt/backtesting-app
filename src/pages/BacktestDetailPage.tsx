@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, Card, Descriptions, Space, Tag, Typography, message } from "antd";
+import { Button, Card, Descriptions, Image, Space, Tag, Typography, message } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { supabase } from "../lib/supabase";
@@ -134,10 +134,11 @@ export function BacktestDetailPage() {
 
                 <Card size="small" title="Equity Curve">
                   {equityImages.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {equityImages.map((imageUrl, index) => (
-                        <a href={imageUrl} target="_blank" rel="noreferrer" key={imageUrl + index}>
-                          <img
+                    <Image.PreviewGroup>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {equityImages.map((imageUrl, index) => (
+                          <Image
+                            key={imageUrl + index}
                             src={imageUrl}
                             alt={`Equity curve ${index + 1}`}
                             style={{
@@ -147,9 +148,9 @@ export function BacktestDetailPage() {
                               borderRadius: 8,
                             }}
                           />
-                        </a>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    </Image.PreviewGroup>
                   ) : (
                     <Text type="secondary">Sin imagen cargada</Text>
                   )}
