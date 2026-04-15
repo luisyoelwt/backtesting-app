@@ -12,7 +12,7 @@ export function Navbar() {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0b0f]/90 backdrop-blur-sm border-b border-white/6">
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
         {/* Logo */}
-        <Link to="/dashboard" className="flex items-center gap-2.5 group">
+        <Link to="/trades" className="flex items-center gap-2.5 group">
           <div className="w-8 h-8 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
             <TrendingUp className="w-4 h-4 text-emerald-400" />
           </div>
@@ -22,16 +22,16 @@ export function Navbar() {
         {/* Nav links */}
         <div className="flex items-center gap-1">
           <Link
-            to="/dashboard"
+            to="/trades"
             className={clsx(
               "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors",
-              pathname === "/dashboard"
+              pathname.startsWith("/trades")
                 ? "bg-white/8 text-white"
                 : "text-white/40 hover:text-white/70 hover:bg-white/4"
             )}
           >
             <LayoutDashboard className="w-4 h-4" />
-            <span>Backtests</span>
+            <span>Trades</span>
           </Link>
 
           <Link

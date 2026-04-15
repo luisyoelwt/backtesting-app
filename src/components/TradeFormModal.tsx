@@ -8,27 +8,35 @@ import {
   message,
   Modal,
   Select,
-  Switch,
-  Upload,
+  // Upload,
   type UploadFile,
 } from "antd";
-import { InboxOutlined } from "@ant-design/icons";
+//import { InboxOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
-import type { BacktestRow, ModelRow } from "../lib/database.types";
+import type { ModelRow, TradeRow } from "../lib/database.types";
 
 const timeframeOptions = ["1m", "5m", "15m", "1H", "4H", "1D", "1W"];
-const MAX_EQUITY_IMAGES = 3;
-const MAX_EQUITY_IMAGE_SIZE_BYTES = 3 * 1024 * 1024;
-const ALLOWED_EQUITY_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const directionOptions = [
+  { label: "Long", value: "long" },
+  { label: "Short", value: "short" },
+];
+const tradeStatusOptions = [
+  { label: "Cerrado", value: "closed" },
+  { label: "Cierre manual", value: "manual_close" },
+  { label: "Cancelado", value: "cancelled" },
+];
+const MAX_TRADE_IMAGES = 3;
+const MAX_TRADE_IMAGE_SIZE_BYTES = 3 * 1024 * 1024;
+const ALLOWED_TRADE_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
-type EquityFileLike = Pick<UploadFile, "type" | "size">;
+type TradeFileLike = Pick<UploadFile, "type" | "size">;
 
-function validateEquityImageFiles(fileList: EquityFileLike[] | undefined) {
+function validateTradeImageFiles(fileList: TradeFileLike[] | undefined) {
   if (!fileList || fileList.length === 0) {
     return { isValid: true as const };
   }
 
-  if (fileList.length > MAX_EQUITY_IMAGES) {
+  if (fileList.length > MAX_TRADE_IMAGES) {
     return {
       isValid: false as const,
       error: "Solo puedes adjuntar hasta 3 imágenes.",
@@ -37,7 +45,7 @@ function validateEquityImageFiles(fileList: EquityFileLike[] | undefined) {
   }
 
   const hasInvalidFormat = fileList.some(
-    (file) => !ALLOWED_EQUITY_IMAGE_TYPES.includes(file.type ?? "")
+    (file) => !ALLOWED_TRADE_IMAGE_TYPES.includes(file.type ?? "")
   );
   if (hasInvalidFormat) {
     return {
@@ -47,7 +55,7 @@ function validateEquityImageFiles(fileList: EquityFileLike[] | undefined) {
     };
   }
 
-  const hasInvalidSize = fileList.some((file) => (file.size ?? 0) > MAX_EQUITY_IMAGE_SIZE_BYTES);
+  const hasInvalidSize = fileList.some((file) => (file.size ?? 0) > MAX_TRADE_IMAGE_SIZE_BYTES);
   if (hasInvalidSize) {
     return {
       isValid: false as const,
@@ -59,53 +67,63 @@ function validateEquityImageFiles(fileList: EquityFileLike[] | undefined) {
   return { isValid: true as const };
 }
 
-type BacktestFormValues = {
+type TradeFormValues = {
   asset: string;
   model_id?: string | null;
   timeframe: string;
+  direction: "long" | "short";
+  trade_status: "closed" | "manual_close" | "cancelled";
   start_date: Dayjs;
   end_date: Dayjs;
   initial_capital: number;
-  total_return?: number;
-  max_drawdown?: number;
-  win_rate?: number;
-  profit_factor?: number;
-  total_trades?: number;
-  sharpe_ratio?: number;
+  gross_pnl?: number;
+  fee_amount?: number;
+  close_reason?: string;
   tags?: string[];
   notes?: string;
-  no_trade_day?: boolean;
-  no_trade_reason?: string;
   equity_curve_file?: UploadFile[];
 };
 
-interface BacktestFormModalProps {
+interface TradeFormModalProps {
   open: boolean;
   mode: "create" | "edit";
   loading?: boolean;
-  initialValues?: BacktestRow | null;
+  initialValues?: TradeRow | null;
+  createDate?: Dayjs | null;
   models: ModelRow[];
   onCancel: () => void;
-  onSubmit: (values: BacktestFormValues) => Promise<void>;
+  onSubmit: (values: TradeFormValues) => Promise<void>;
 }
 
-export function BacktestFormModal({
+export function TradeFormModal({
   open,
   mode,
   loading,
   initialValues,
+  createDate,
   models,
   onCancel,
   onSubmit,
-}: BacktestFormModalProps) {
-  const [form] = Form.useForm<BacktestFormValues>();
+}: TradeFormModalProps) {
+  const [form] = Form.useForm<TradeFormValues>();
   const [messageApi, contextHolder] = message.useMessage();
-  const noTradeDay = Form.useWatch("no_trade_day", form);
+  const tradeStatus = Form.useWatch("trade_status", form);
+  const initialCapital = Form.useWatch("initial_capital", form) ?? 0;
+  const grossPnl = Form.useWatch("gross_pnl", form) ?? 0;
+  const feeAmount = Form.useWatch("fee_amount", form) ?? 0;
 
-  const modalTitle = useMemo(
-    () => (mode === "create" ? "Nuevo Backtest" : "Editar Backtest"),
-    [mode]
-  );
+  const modalTitle = useMemo(() => (mode === "create" ? "Nuevo Trade" : "Editar Trade"), [mode]);
+
+  const netPnlPreview = useMemo(() => Number(grossPnl) - Number(feeAmount), [feeAmount, grossPnl]);
+
+  const returnPreview = useMemo(() => {
+    const capital = Number(initialCapital);
+    if (!capital) return 0;
+    return (netPnlPreview / capital) * 100;
+  }, [initialCapital, netPnlPreview]);
+
+  const closeReasonLabel =
+    tradeStatus === "cancelled" ? "Motivo de cancelación" : "Comentario del cierre";
 
   useEffect(() => {
     if (!open) return;
@@ -115,27 +133,40 @@ export function BacktestFormModal({
         asset: initialValues.asset,
         model_id: initialValues.model_id,
         timeframe: initialValues.timeframe,
+        direction: (initialValues.direction as "long" | "short") ?? "long",
+        trade_status:
+          (initialValues.trade_status as "closed" | "manual_close" | "cancelled") ??
+          (initialValues.no_trade_day ? "cancelled" : "closed"),
         start_date: dayjs(initialValues.start_date),
         end_date: dayjs(initialValues.end_date),
         initial_capital: initialValues.initial_capital,
-        total_return: initialValues.total_return ?? undefined,
-        max_drawdown: initialValues.max_drawdown ?? undefined,
-        win_rate: initialValues.win_rate ?? undefined,
-        profit_factor: initialValues.profit_factor ?? undefined,
-        total_trades: initialValues.total_trades ?? undefined,
-        sharpe_ratio: initialValues.sharpe_ratio ?? undefined,
+        gross_pnl:
+          initialValues.gross_pnl ??
+          (initialValues.net_pnl != null && initialValues.fee_amount != null
+            ? initialValues.net_pnl + initialValues.fee_amount
+            : undefined),
+        fee_amount: initialValues.fee_amount ?? 0,
+        close_reason: initialValues.close_reason ?? initialValues.no_trade_reason ?? undefined,
         tags: initialValues.tags ?? [],
         notes: initialValues.notes ?? undefined,
-        no_trade_day: initialValues.no_trade_day,
-        no_trade_reason: initialValues.no_trade_reason ?? undefined,
         equity_curve_file: [],
       });
       return;
     }
 
     form.resetFields();
-    form.setFieldsValue({ timeframe: "5m", tags: [], no_trade_day: false, equity_curve_file: [] });
-  }, [form, initialValues, mode, open]);
+    const baseDate = createDate ?? dayjs();
+    form.setFieldsValue({
+      timeframe: "5m",
+      direction: "long",
+      trade_status: "closed",
+      start_date: baseDate.startOf("day"),
+      end_date: baseDate.startOf("day").add(1, "hour"),
+      fee_amount: 0,
+      tags: [],
+      equity_curve_file: [],
+    });
+  }, [createDate, form, initialValues, mode, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -155,7 +186,7 @@ export function BacktestFormModal({
       if (pastedImages.length === 0) return;
 
       const currentFiles = form.getFieldValue("equity_curve_file") ?? [];
-      const availableSlots = MAX_EQUITY_IMAGES - currentFiles.length;
+      const availableSlots = MAX_TRADE_IMAGES - currentFiles.length;
 
       if (availableSlots <= 0) {
         event.preventDefault();
@@ -168,7 +199,7 @@ export function BacktestFormModal({
       let hasSizeError = false;
 
       for (const file of pastedImages) {
-        const validation = validateEquityImageFiles([file]);
+        const validation = validateTradeImageFiles([file]);
 
         if (!validation.isValid && validation.code === "invalid_format") {
           hasFormatError = true;
@@ -244,22 +275,14 @@ export function BacktestFormModal({
       >
         <Form form={form} layout="vertical" requiredMark={false}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Form.Item label="Día sin operativa" name="no_trade_day" valuePropName="checked">
-              <Switch checkedChildren="Sí" unCheckedChildren="No" />
+            <Form.Item label="Dirección" name="direction" rules={[{ required: true }]}>
+              <Select options={directionOptions} />
             </Form.Item>
-          </div>
 
-          {noTradeDay ? (
-            <Form.Item
-              label="Motivo (no se dio oportunidad de operar)"
-              name="no_trade_reason"
-              rules={[{ required: true, message: "Describe por qué no hubo operativa." }]}
-            >
-              <Input.TextArea rows={2} placeholder="Ej: Mercado lateral sin setup válido." />
+            <Form.Item label="Estado del trade" name="trade_status" rules={[{ required: true }]}>
+              <Select options={tradeStatusOptions} />
             </Form.Item>
-          ) : null}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Form.Item
               label="Activo"
               name="asset"
@@ -273,21 +296,22 @@ export function BacktestFormModal({
             </Form.Item>
 
             <Form.Item label="Timeframe" name="timeframe" rules={[{ required: true }]}>
-              <Select options={timeframeOptions.map((t) => ({ label: t, value: t }))} />
+              <Select
+                options={timeframeOptions.map((timeframe) => ({
+                  label: timeframe,
+                  value: timeframe,
+                }))}
+              />
             </Form.Item>
 
             <Form.Item
               label="Modelo"
               name="model_id"
-              rules={
-                noTradeDay
-                  ? []
-                  : [{ required: true, message: "Selecciona un modelo para este backtest." }]
-              }
+              rules={[{ required: true, message: "Selecciona un modelo para este trade." }]}
             >
               <Select
                 placeholder="Selecciona un modelo"
-                allowClear={noTradeDay}
+                allowClear
                 options={models.map((model) => ({
                   label: model.name,
                   value: model.id,
@@ -296,19 +320,23 @@ export function BacktestFormModal({
             </Form.Item>
 
             <Form.Item
-              label="Capital Inicial"
+              label="Capital Asignado"
               name="initial_capital"
-              rules={noTradeDay ? [] : [{ required: true, message: "Este campo es requerido" }]}
+              rules={[{ required: true, message: "Este campo es requerido" }]}
             >
-              <InputNumber style={{ width: "100%" }} min={0} step={0.01} disabled={noTradeDay} />
+              <InputNumber style={{ width: "100%" }} min={0} step={0.01} />
             </Form.Item>
 
-            <Form.Item label="Inicio (fecha y hora)" name="start_date" rules={[{ required: true }]}>
+            <Form.Item
+              label="Apertura (fecha y hora)"
+              name="start_date"
+              rules={[{ required: true }]}
+            >
               <DatePicker showTime style={{ width: "100%" }} format="YYYY-MM-DD HH:mm" />
             </Form.Item>
 
             <Form.Item
-              label="Fin (fecha y hora)"
+              label="Cierre (fecha y hora)"
               name="end_date"
               dependencies={["start_date"]}
               rules={[
@@ -319,7 +347,9 @@ export function BacktestFormModal({
                     if (!start || !value || value.isAfter(start)) {
                       return Promise.resolve();
                     }
-                    return Promise.reject(new Error("La fecha fin debe ser posterior al inicio."));
+                    return Promise.reject(
+                      new Error("La fecha de cierre debe ser posterior a la apertura.")
+                    );
                   },
                 }),
               ]}
@@ -328,16 +358,71 @@ export function BacktestFormModal({
             </Form.Item>
           </div>
 
-          <Form.Item
-            label="Screenshot Equity Curve"
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Form.Item label="Resultado Bruto" name="gross_pnl">
+              <InputNumber
+                style={{ width: "100%" }}
+                step={0.01}
+                disabled={tradeStatus === "cancelled"}
+              />
+            </Form.Item>
+            <Form.Item label="Comisión / Fees" name="fee_amount">
+              <InputNumber
+                style={{ width: "100%" }}
+                min={0}
+                step={0.01}
+                disabled={tradeStatus === "cancelled"}
+              />
+            </Form.Item>
+            <Form.Item label="Rentabilidad Estimada">
+              <InputNumber
+                style={{ width: "100%" }}
+                value={Number(returnPreview.toFixed(2))}
+                suffix="%"
+                disabled
+              />
+            </Form.Item>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Form.Item label="PnL Neto Estimado">
+              <InputNumber
+                style={{ width: "100%" }}
+                value={Number(netPnlPreview.toFixed(2))}
+                disabled
+              />
+            </Form.Item>
+
+            <Form.Item
+              label={closeReasonLabel}
+              name="close_reason"
+              rules={
+                tradeStatus === "manual_close" || tradeStatus === "cancelled"
+                  ? [{ required: true, message: "Completa este campo." }]
+                  : []
+              }
+            >
+              <Input.TextArea
+                rows={2}
+                placeholder={
+                  tradeStatus === "cancelled"
+                    ? "Ej: setup invalidado antes de ejecutar"
+                    : "Ej: cierre manual por pérdida de momentum"
+                }
+              />
+            </Form.Item>
+          </div>
+
+          {/* <Form.Item
+            label="Capturas del trade"
             name="equity_curve_file"
             valuePropName="fileList"
-            getValueFromEvent={(e) => e?.fileList}
+            getValueFromEvent={(event) => event?.fileList}
             extra="PNG/JPG/WEBP, máximo 3 imágenes de 3MB cada una."
             rules={[
               {
                 validator: (_, fileList: UploadFile[] | undefined) => {
-                  const validation = validateEquityImageFiles(fileList);
+                  const validation = validateTradeImageFiles(fileList);
                   if (!validation.isValid) {
                     return Promise.reject(new Error(validation.error));
                   }
@@ -350,35 +435,18 @@ export function BacktestFormModal({
             <Upload.Dragger
               accept=".png,.jpg,.jpeg,.webp"
               multiple
-              maxCount={MAX_EQUITY_IMAGES}
+              maxCount={MAX_TRADE_IMAGES}
               beforeUpload={() => false}
             >
               <p className="ant-upload-drag-icon">
                 <InboxOutlined />
               </p>
               <p className="ant-upload-text">Haz click o arrastra hasta 3 imágenes</p>
-              <p className="ant-upload-hint">Puedes adjuntar screenshots de la curva de equity</p>
+              <p className="ant-upload-hint">
+                Adjunta capturas de entrada, salida o contexto del trade
+              </p>
             </Upload.Dragger>
-          </Form.Item>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <Form.Item label="Total Return %" name="total_return">
-              <InputNumber style={{ width: "100%" }} step={0.01} disabled={noTradeDay} />
-            </Form.Item>
-            <Form.Item label="Max Drawdown %" name="max_drawdown">
-              <InputNumber style={{ width: "100%" }} step={0.01} disabled={noTradeDay} />
-            </Form.Item>
-            <Form.Item label="Win Rate %" name="win_rate">
-              <InputNumber style={{ width: "100%" }} step={0.01} disabled={noTradeDay} />
-            </Form.Item>
-            <Form.Item label="Profit Factor" name="profit_factor">
-              <InputNumber style={{ width: "100%" }} step={0.01} disabled={noTradeDay} />
-            </Form.Item>
-
-            <Form.Item label="Sharpe Ratio" name="sharpe_ratio">
-              <InputNumber style={{ width: "100%" }} step={0.01} disabled={noTradeDay} />
-            </Form.Item>
-          </div>
+          </Form.Item> */}
 
           <Form.Item label="Tags" name="tags">
             <Select mode="tags" tokenSeparators={[","]} placeholder="momentum, breakout, crypto" />
@@ -393,4 +461,4 @@ export function BacktestFormModal({
   );
 }
 
-export type { BacktestFormValues };
+export type { TradeFormValues };

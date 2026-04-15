@@ -26,5 +26,5 @@ export function PublicRoute() {
     );
   }
 
-  return user ? <Navigate to="/dashboard" replace /> : <Outlet />;
+  return user ? <Navigate to="/trades" replace /> : <Outlet />;
 }

@@ -4,15 +4,15 @@ import { Button, Card, Descriptions, Image, Space, Tag, Typography, message } fr
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { supabase } from "../lib/supabase";
-import type { BacktestRow } from "../lib/database.types";
+import type { TradeRow } from "../lib/database.types";
 
 const { Title, Text } = Typography;
 
-export function BacktestDetailPage() {
+export function TradeDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<BacktestRow | null>(null);
+  const [data, setData] = useState<TradeRow | null>(null);
   const [modelName, setModelName] = useState<string | null>(null);
   const [modelDescription, setModelDescription] = useState<string | null>(null);
 
@@ -20,7 +20,7 @@ export function BacktestDetailPage() {
     const loadById = async () => {
       if (!id) return;
       setLoading(true);
-      const { data, error } = await supabase.from("backtests").select("*").eq("id", id).single();
+      const { data, error } = await supabase.from("trades").select("*").eq("id", id).single();
 
       if (error) {
         message.error(error.message);
@@ -44,10 +44,10 @@ export function BacktestDetailPage() {
       setLoading(false);
     };
 
-    loadById();
+    void loadById();
   }, [id]);
 
-  const equityImages = data
+  const tradeImages = data
     ? data.equity_curve_urls?.length
       ? data.equity_curve_urls.slice(0, 3)
       : data.equity_curve_url
@@ -55,11 +55,24 @@ export function BacktestDetailPage() {
         : []
     : [];
 
+  const statusLabel =
+    data?.trade_status === "cancelled"
+      ? "Cancelado"
+      : data?.trade_status === "manual_close"
+        ? "Cierre manual"
+        : "Cerrado";
+
+  const directionLabel = data?.direction === "short" ? "Short" : "Long";
+  const durationHours =
+    data && data.start_date && data.end_date
+      ? dayjs(data.end_date).diff(dayjs(data.start_date), "minute") / 60
+      : 0;
+
   return (
     <div className="min-h-screen bg-[#0a0b0f] text-white px-4 md:px-6 pt-20 pb-10">
       <div className="max-w-5xl mx-auto">
         <Space orientation="vertical" size={12} style={{ width: "100%" }}>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/dashboard")}>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/trades")}>
             Volver
           </Button>
 
@@ -70,7 +83,7 @@ export function BacktestDetailPage() {
                   <Title level={3} style={{ marginBottom: 0 }}>
                     {data.asset} - {data.strategy_name}
                   </Title>
-                  <Text type="secondary">Detalle completo del backtest</Text>
+                  <Text type="secondary">Detalle completo del trade</Text>
                 </div>
 
                 <Card size="small" title="Contexto Operativo">
@@ -78,20 +91,25 @@ export function BacktestDetailPage() {
                     <Descriptions.Item label="Activo">{data.asset}</Descriptions.Item>
                     <Descriptions.Item label="Timeframe">{data.timeframe}</Descriptions.Item>
                     <Descriptions.Item label="Modelo">{modelName || "-"}</Descriptions.Item>
-                    <Descriptions.Item label="Estado operativo">
-                      {data.no_trade_day ? "Sin operativa" : "Operado"}
+                    <Descriptions.Item label="Dirección">{directionLabel}</Descriptions.Item>
+                    <Descriptions.Item label="Estado">{statusLabel}</Descriptions.Item>
+                    <Descriptions.Item label="Motivo / comentario de cierre" span={2}>
+                      {data.close_reason || data.no_trade_reason || "-"}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Motivo sin operativa" span={2}>
-                      {data.no_trade_reason || "-"}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Inicio">
+                    <Descriptions.Item label="Apertura">
                       {dayjs(data.start_date).format("YYYY-MM-DD HH:mm")}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Fin">
+                    <Descriptions.Item label="Cierre">
                       {dayjs(data.end_date).format("YYYY-MM-DD HH:mm")}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Capital inicial">
+                    <Descriptions.Item label="Duración">
+                      {durationHours ? `${durationHours.toFixed(2)} h` : "-"}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Capital asignado">
                       {Number(data.initial_capital).toFixed(2)}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Comisión">
+                      {data.fee_amount == null ? "-" : `$${Number(data.fee_amount).toFixed(2)}`}
                     </Descriptions.Item>
                     <Descriptions.Item label="Tags">
                       {data.tags?.length ? data.tags.map((tag) => <Tag key={tag}>{tag}</Tag>) : "-"}
@@ -99,22 +117,19 @@ export function BacktestDetailPage() {
                   </Descriptions>
                 </Card>
 
-                <Card size="small" title="Metricas">
+                <Card size="small" title="Resultado del Trade">
                   <Descriptions bordered column={2} size="small">
-                    <Descriptions.Item label="Total Return %">
+                    <Descriptions.Item label="PnL Bruto">
+                      {data.gross_pnl == null ? "-" : `$${Number(data.gross_pnl).toFixed(2)}`}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="PnL Neto">
+                      {data.net_pnl == null ? "-" : `$${Number(data.net_pnl).toFixed(2)}`}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Rentabilidad %">
                       {data.total_return == null ? "-" : data.total_return.toFixed(2)}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Max Drawdown %">
-                      {data.max_drawdown == null ? "-" : data.max_drawdown.toFixed(2)}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Win Rate %">
-                      {data.win_rate == null ? "-" : data.win_rate.toFixed(2)}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Profit Factor">
-                      {data.profit_factor == null ? "-" : data.profit_factor.toFixed(2)}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Sharpe Ratio">
-                      {data.sharpe_ratio == null ? "-" : data.sharpe_ratio.toFixed(2)}
+                    <Descriptions.Item label="Trade ganador">
+                      {data.net_pnl == null ? "-" : data.net_pnl > 0 ? "Sí" : "No"}
                     </Descriptions.Item>
                   </Descriptions>
                 </Card>
@@ -132,15 +147,15 @@ export function BacktestDetailPage() {
                   </Descriptions>
                 </Card>
 
-                <Card size="small" title="Equity Curve">
-                  {equityImages.length > 0 ? (
+                <Card size="small" title="Capturas del Trade">
+                  {tradeImages.length > 0 ? (
                     <Image.PreviewGroup>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {equityImages.map((imageUrl, index) => (
+                        {tradeImages.map((imageUrl, index) => (
                           <Image
                             key={imageUrl + index}
                             src={imageUrl}
-                            alt={`Equity curve ${index + 1}`}
+                            alt={`Trade capture ${index + 1}`}
                             style={{
                               width: "100%",
                               maxHeight: 360,
@@ -152,7 +167,7 @@ export function BacktestDetailPage() {
                       </div>
                     </Image.PreviewGroup>
                   ) : (
-                    <Text type="secondary">Sin imagen cargada</Text>
+                    <Text type="secondary">Sin capturas cargadas</Text>
                   )}
                 </Card>
               </Space>

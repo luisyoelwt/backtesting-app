@@ -135,3 +135,31 @@ body {
 .models-table-html a {
   color: #73c8ff !important;
 }
+
+.trades-notice-calendar .events {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trades-notice-calendar .events li {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.trades-notice-calendar .ant-badge-status-text {
+  color: #cfd9ea;
+  font-size: 12px;
+}
+
+.trades-notice-calendar .trade-notice-item {
+  cursor: pointer;
+}
+
+.trades-notice-calendar .trade-notice-item:hover .ant-badge-status-text {
+  color: #f3f7ff;
+  text-decoration: underline;
+}

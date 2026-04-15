@@ -3,8 +3,8 @@ import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute, PublicRoute } from "./components/RouteGuards";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
-import { DashboardPage } from "./pages/DashboardPage";
-import { BacktestDetailPage } from "./pages/BacktestDetailPage";
+import { TradesPage } from "./pages/TradesPage";
+import { TradeDetailPage } from "./pages/TradeDetailPage";
 import { ModelsPage } from "./pages/ModelsPage";
 import { AppLayout } from "./layouts/AppLayout";
 import { AnalysisPage } from "./pages/AnalysisPage";
@@ -20,14 +20,14 @@ function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/trades" element={<TradesPage />} />
             <Route path="/models" element={<ModelsPage />} />
             <Route path="/analysis" element={<AnalysisPage />} />
-            <Route path="/dashboard/:id" element={<BacktestDetailPage />} />
+            <Route path="/trades/:id" element={<TradeDetailPage />} />
           </Route>
         </Route>
 
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/trades" replace />} />
       </Routes>
     </AuthProvider>
   );

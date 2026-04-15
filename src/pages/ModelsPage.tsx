@@ -186,7 +186,7 @@ export function ModelsPage() {
           <Button icon={<EditOutlined />} onClick={() => openEdit(row)} />
           <Popconfirm
             title="Eliminar modelo"
-            description="Los backtests quedarán sin modelo asignado."
+            description="Los trades quedarán sin modelo asignado."
             okText="Eliminar"
             cancelText="Cancelar"
             onConfirm={() => handleDelete(row.id)}
@@ -207,7 +207,7 @@ export function ModelsPage() {
               Modelos de Estrategia
             </Title>
             <Text style={{ color: "#8b98b1" }}>
-              Catálogo personal de estrategias por usuario para enlazar a backtests.
+              Catálogo personal de estrategias por usuario para enlazar a trades.
             </Text>
           </div>
 

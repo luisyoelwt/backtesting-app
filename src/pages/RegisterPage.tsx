@@ -90,7 +90,7 @@ export function RegisterPage() {
             Crear cuenta
           </Title>
           <Paragraph style={{ color: "#96a4be", marginBottom: 20 }}>
-            Empieza a registrar tus backtests
+            Empieza a registrar tus trades
           </Paragraph>
 
           {error && (

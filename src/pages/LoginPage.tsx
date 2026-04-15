@@ -55,7 +55,7 @@ export function LoginPage() {
             Bienvenido de vuelta
           </Title>
           <Paragraph style={{ color: "#96a4be", marginBottom: 20 }}>
-            Inicia sesión para ver tus backtests
+            Inicia sesión para ver tus trades
           </Paragraph>
 
           {error && (
