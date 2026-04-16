@@ -8,6 +8,7 @@ import { TradeDetailPage } from "./pages/TradeDetailPage";
 import { ModelsPage } from "./pages/ModelsPage";
 import { AppLayout } from "./layouts/AppLayout";
 import { AnalysisPage } from "./pages/AnalysisPage";
+import { RiskCalculatorPage } from "./pages/RiskCalculatorPage";
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
             <Route path="/trades" element={<TradesPage />} />
             <Route path="/models" element={<ModelsPage />} />
             <Route path="/analysis" element={<AnalysisPage />} />
+            <Route path="/risk-calculator" element={<RiskCalculatorPage />} />
             <Route path="/trades/:id" element={<TradeDetailPage />} />
           </Route>
         </Route>
