@@ -54,6 +54,17 @@ export function TradesCalendar({
     return trade.net_pnl >= 0 ? "success" : "error";
   };
 
+  const dailyPnL = useMemo(() => {
+    const pnlByDate = new Map<string, number>();
+
+    for (const [date, trades] of tradesByDate) {
+      const total = trades.reduce((sum, trade) => sum + (trade.net_pnl ?? 0), 0);
+      pnlByDate.set(date, total);
+    }
+
+    return pnlByDate;
+  }, [tradesByDate]);
+
   const overflowDayTrades = overflowDateKey ? (tradesByDate.get(overflowDateKey) ?? []) : [];
 
   return (
@@ -70,50 +81,78 @@ export function TradesCalendar({
             if (info.type !== "date") return info.originNode;
 
             const dayTrades = tradesByDate.get(date.format("YYYY-MM-DD")) ?? [];
+            const dayPnL = dailyPnL.get(date.format("YYYY-MM-DD")) ?? 0;
+
             if (!dayTrades.length) return null;
 
-            return (
-              <ul className="events">
-                {dayTrades.slice(0, 3).map((trade) => {
-                  const pnlText =
-                    trade.net_pnl == null
-                      ? ""
-                      : ` ${trade.net_pnl >= 0 ? "+" : ""}${trade.net_pnl.toFixed(0)}`;
-                  const modelName = trade.model_id ? modelNameById.get(trade.model_id) : null;
+            const dayPnLText = `${dayPnL >= 0 ? "+" : ""}${dayPnL.toFixed(0)}`;
+            const dayPnLColor = dayPnL >= 0 ? "#22c55e" : "#ef4444";
+            const dayPnLBgColor =
+              dayPnL >= 0 ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)";
 
-                  return (
-                    <li key={trade.id}>
-                      <span
-                        className="trade-notice-item"
+            return (
+              <div
+                data-pnl-status={dayPnL >= 0 ? "positive" : "negative"}
+                style={{
+                  backgroundColor: dayPnLBgColor,
+                  borderRadius: 4,
+                  padding: 8,
+                  borderLeft: `4px solid ${dayPnLColor}`,
+                  height: "100%",
+                }}
+              >
+                <ul className="events" style={{ margin: 0 }}>
+                  <li
+                    style={{
+                      fontWeight: "bold",
+                      color: dayPnLColor,
+                      fontSize: 14,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {dayPnLText}
+                  </li>
+                  {dayTrades.slice(0, 2).map((trade) => {
+                    const pnlText =
+                      trade.net_pnl == null
+                        ? ""
+                        : ` ${trade.net_pnl >= 0 ? "+" : ""}${trade.net_pnl.toFixed(0)}`;
+                    const modelName = trade.model_id ? modelNameById.get(trade.model_id) : null;
+
+                    return (
+                      <li key={trade.id} style={{ fontSize: 12 }}>
+                        <span
+                          className="trade-notice-item"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openTradeDetails(trade);
+                          }}
+                        >
+                          <Badge
+                            status={getNoticeStatus(trade)}
+                            text={`${trade.asset} · ${modelName ?? "Sin modelo"}${pnlText}`}
+                          />
+                        </span>
+                      </li>
+                    );
+                  })}
+                  {dayTrades.length > 2 ? (
+                    <li>
+                      <Button
+                        type="link"
+                        size="small"
+                        style={{ padding: 0, height: 18, fontSize: 11 }}
                         onClick={(event) => {
                           event.stopPropagation();
-                          openTradeDetails(trade);
+                          setOverflowDateKey(date.format("YYYY-MM-DD"));
                         }}
                       >
-                        <Badge
-                          status={getNoticeStatus(trade)}
-                          text={`${trade.asset} · ${modelName ?? "Sin modelo"}${pnlText}`}
-                        />
-                      </span>
+                        +{dayTrades.length - 2} más
+                      </Button>
                     </li>
-                  );
-                })}
-                {dayTrades.length > 3 ? (
-                  <li>
-                    <Button
-                      type="link"
-                      size="small"
-                      style={{ padding: 0, height: 18, fontSize: 11 }}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setOverflowDateKey(date.format("YYYY-MM-DD"));
-                      }}
-                    >
-                      +{dayTrades.length - 3} más
-                    </Button>
-                  </li>
-                ) : null}
-              </ul>
+                  ) : null}
+                </ul>
+              </div>
             );
           }}
         />

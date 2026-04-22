@@ -163,3 +163,45 @@ body {
   color: #f3f7ff;
   text-decoration: underline;
 }
+
+/* Color full calendar cells based on daily PnL */
+.trades-notice-calendar [data-pnl-status="positive"] {
+  --pnl-status: positive;
+}
+
+.trades-notice-calendar [data-pnl-status="negative"] {
+  --pnl-status: negative;
+}
+
+.trades-notice-calendar
+  .ant-picker-cell-in-view.ant-picker-calendar-date:has([data-pnl-status="positive"]) {
+  background-color: rgba(34, 197, 94, 0.15);
+}
+
+.trades-notice-calendar
+  .ant-picker-cell-in-view.ant-picker-calendar-date:has([data-pnl-status="negative"]) {
+  background-color: rgba(239, 68, 68, 0.15);
+}
+
+/* Increase calendar cell size */
+.trades-notice-calendar .ant-picker-cell {
+  padding: 16px 8px;
+  min-height: 150px;
+  vertical-align: top;
+}
+
+.trades-notice-calendar .ant-picker-cell-inner {
+  min-height: 150px;
+}
+
+/* Remove Ant fixed day-content height so cell content can grow naturally */
+.trades-notice-calendar.ant-picker-calendar.ant-picker-calendar-full
+  .ant-picker-calendar-date-content {
+  height: auto;
+  overflow-y: visible;
+}
+
+/* Increase day number font size */
+.trades-notice-calendar .ant-picker-calendar-date-value {
+  font-weight: 500;
+}
